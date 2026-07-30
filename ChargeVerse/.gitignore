@@ -1,0 +1,27 @@
+# Python / Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Streamlit Cache & User Local State
+.streamlit/
+*.log
+*.sqlite3
+
+# Local Application Data & Scratch files
+scratch/
+.system_generated/

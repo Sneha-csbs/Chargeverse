@@ -1,0 +1,16 @@
+{
+    "vehicle_id": "EV-001",
+    "cargo_type": "Ice Cream",
+    "total_window_minutes": 120.0,
+    "remaining_window_minutes": 118.5,
+    "battery_soc": 98.5,
+    "gps_lat": 51.5074,
+    "gps_lon": -0.1278,
+    "last_sla_evaluation": {
+        "vehicle_id": "EV-001",
+        "urgency_score": 0.013374999999999958,
+        "cargo_type": "Ice Cream",
+        "delivery_window_remaining_minutes": 118.5,
+        "timestamp": 1785171644.3562455
+    }
+}

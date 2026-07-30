@@ -1,0 +1,121 @@
+{
+  "stations": {
+    "station_a": {
+      "status": "AUCTION_ALERT_PENDING",
+      "price_per_kwh": 0.05,
+      "queue_length": 0,
+      "kw": 50.0,
+      "safety_buffer_percentage": 60.0,
+      "facility_type": "PRIVATE_YARD",
+      "active_booking": {
+        "vehicle_id": "EV-CV-001",
+        "pass_id": "#808-GATE-PASS-7379EE82",
+        "assigned_bay": "BAY-06",
+        "valid_until": "23:30 IST",
+        "transaction_id": "TXN-BLR-477327"
+      },
+      "pending_request": {
+        "vehicle_id": "EV-CV-001",
+        "required_kwh": 63.54,
+        "urgency": "LOW",
+        "cargo_type": "Pharmaceuticals / Vaccines",
+        "proposed_tariff": 8.0
+      }
+    },
+    "station_b": {
+      "status": "ONLINE",
+      "price_per_kwh": 0.05,
+      "queue_length": 2,
+      "kw": 50.0,
+      "safety_buffer_percentage": 70.0,
+      "facility_type": "PUBLIC_STATION"
+    },
+    "station_c": {
+      "status": "Available",
+      "price_per_kwh": 0.24,
+      "queue_length": 1,
+      "kw": 180.0,
+      "pending_request": {
+        "vehicle_id": "EV-CV-001",
+        "required_kwh": 0.0,
+        "urgency": "MODERATE",
+        "cargo_type": "Pharmaceuticals / Vaccines",
+        "proposed_tariff": 8.0
+      }
+    },
+    "station_d": {
+      "status": "ONLINE",
+      "price_per_kwh": 0.05,
+      "queue_length": 1,
+      "kw": 50.0,
+      "safety_buffer_percentage": 70.0,
+      "facility_type": "PUBLIC_STATION"
+    },
+    "station_e": {
+      "status": "Available",
+      "price_per_kwh": 0.05,
+      "queue_length": 0,
+      "kw": 50.0
+    },
+    "station_f": {
+      "status": "ONLINE",
+      "price_per_kwh": 0.05,
+      "queue_length": 0,
+      "kw": 50.0,
+      "safety_buffer_percentage": 65.0,
+      "facility_type": "PRIVATE_YARD",
+      "active_booking": {
+        "vehicle_id": "EV-CV-001",
+        "pass_id": "#808-GATE-PASS-B3F3CBDE",
+        "assigned_bay": "BAY-07",
+        "valid_until": "23:37 IST",
+        "transaction_id": "TXN-BLR-939605"
+      },
+      "pending_request": {
+        "vehicle_id": "EV-CV-001",
+        "required_kwh": 63.54,
+        "urgency": "LOW",
+        "cargo_type": "Pharmaceuticals / Vaccines",
+        "proposed_tariff": 8.0
+      },
+      "station_id": "station_f",
+      "facility_name": "[Private] Hosur Freight Terminal"
+    },
+    "station_g": {
+      "status": "AUCTION_ALERT_PENDING",
+      "price_per_kwh": 0.22,
+      "queue_length": 0,
+      "kw": 300.0,
+      "pending_request": {
+        "vehicle_id": "EV-CV-001",
+        "required_kwh": 63.54,
+        "urgency": "LOW",
+        "cargo_type": "Pharmaceuticals / Vaccines",
+        "proposed_tariff": 8.0
+      },
+      "safety_buffer_percentage": 60.0,
+      "facility_type": "PRIVATE_YARD",
+      "station_id": "station_g",
+      "facility_name": "[Private] Peenya EV Logistics Hub"
+    }
+  },
+  "active_requests": {
+    "EV-CV-001": {
+      "vehicle_id": "EV-CV-001",
+      "status": "AUCTION_ALERT_PENDING",
+      "accepted_by": null,
+      "top3_stations": [
+        "station_f",
+        "station_a",
+        "station_g"
+      ],
+      "battery_soc": 100.0,
+      "energy_deficit": 79.42,
+      "sla_urgency": 0.3,
+      "cargo_type": "Pharmaceuticals / Vaccines",
+      "gps_lat": 10.82775,
+      "gps_lon": 77.06042,
+      "timestamp": 1785388516.38
+    }
+  }
+}

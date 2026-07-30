@@ -1,0 +1,32 @@
+{
+  "station_a": {
+    "status": "Available",
+    "price_per_kwh": 0.22,
+    "queue_length": 0,
+    "kw": 250.0
+  },
+  "station_b": {
+    "status": "Offline",
+    "price_per_kwh": 0.05,
+    "queue_length": 2,
+    "kw": 50.0
+  },
+  "station_c": {
+    "status": "Available",
+    "price_per_kwh": 0.24,
+    "queue_length": 1,
+    "kw": 180.0
+  },
+  "station_d": {
+    "status": "Available",
+    "price_per_kwh": 0.3,
+    "queue_length": 2,
+    "kw": 300.0
+  },
+  "station_e": {
+    "status": "Available",
+    "price_per_kwh": 0.25,
+    "queue_length": 0,
+    "kw": 150.0
+  }
+}
