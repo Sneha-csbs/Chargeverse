@@ -36,6 +36,7 @@ from fintech_agent import FinTechSettlementAgent, InvoiceBreakdown
 from weather_agent import WeatherImpactAgent, WeatherImpactPayload
 from reputation_agent import StationReputationAgent, ReputationScorePayload
 from fleet_agent import YardHostPayload
+from route_optimizer_agent import RouteOptimizerAgent, RoutePayload
 
 
 
@@ -748,8 +749,16 @@ def _reset_energy():
 
 
 def _drain_to_alert():
-    st.session_state.battery_soc     = 45.0
-    st.session_state.distance_driven = 35.0
+    st.session_state.battery_soc       = 45.0
+    st.session_state.distance_driven   = 35.0
+    st.session_state.gate_pass         = None
+    st.session_state.invoice_ledger    = None
+    st.session_state.winning_station   = None
+    st.session_state.route_payload     = None
+    # Purge active station acceptance state in stations_db.json
+    db = _load_stations_db()
+    if "EV-CV-001" in db.get("active_requests", {}):
+        _save_stations_db({"active_requests": {"EV-CV-001": None}})
 
 
 
@@ -2600,7 +2609,11 @@ if st.session_state.role == "driver":
                 "status": "RESERVED"
             },
             "Agent 9: SecurityPass": gate_pass_payload.dict() if hasattr(gate_pass_payload, 'dict') else str(gate_pass_payload),
-            "Agent 10: FinTechSettlement": invoice_payload.dict() if hasattr(invoice_payload, 'dict') else str(invoice_payload)
+            "Agent 10: FinTechSettlement": invoice_payload.dict() if hasattr(invoice_payload, 'dict') else str(invoice_payload),
+            "Agent 11: RouteOptimizer": st.session_state.get("route_payload") or {
+                "distance_km": dist_km,
+                "status": "DISPATCH_READY"
+            }
         }
     else:
         st.session_state.alert_active      = False
@@ -2817,9 +2830,9 @@ if st.session_state.role == "driver":
             <div class="agent-pipeline-box">
               <p style="font-family:var(--font-heading);font-size:1.0rem;color:var(--accent-neon);
                         margin:0 0 16px;letter-spacing:1px;text-transform:uppercase;">
-                🤖 AUTONOMOUS 10-AGENT EXECUTION PIPELINE
+                🤖 AUTONOMOUS 11-AGENT EXECUTION PIPELINE
               </p>
-              <div style="display:grid;grid-template-columns:repeat(10, 1fr);gap:5px;">
+              <div style="display:grid;grid-template-columns:repeat(11, 1fr);gap:5px;">
                 <div class="agent-step-card" style="border-color:rgba(0,191,255,0.45);box-shadow:0 0 14px rgba(0,191,255,0.18);">
                   <p style="font-family:var(--font-heading);font-size:0.68rem;color:#00BFFF;margin:0 0 4px;">
                     1️⃣ Weather_Impact
@@ -2910,13 +2923,22 @@ if st.session_state.role == "driver":
                   </p>
                   <p style="font-size:0.65rem;color:#F59E0B;margin:0;">18% GST Settled</p>
                 </div>
+                <div class="agent-step-card" style="border-color:rgba(0,191,255,0.45);box-shadow:0 0 14px rgba(0,191,255,0.18);">
+                  <p style="font-family:var(--font-heading);font-size:0.68rem;color:#00BFFF;margin:0 0 4px;">
+                    1️⃣1️⃣ Route_Optimizer
+                  </p>
+                  <p style="font-family:var(--font-tech);font-size:0.60rem;color:var(--text-muted);margin:0 0 4px;">
+                    Navigation
+                  </p>
+                  <p style="font-size:0.65rem;color:#00BFFF;margin:0;">GPS Dispatch</p>
+                </div>
               </div>
             </div>
             """, unsafe_allow_html=True)
 
-        # ── 📈 DYNAMIC PRICING AGENT EXPANDER ──
+        # ── 📈 DYNAMIC PRICING AGENT EXPANDER (hidden after gate pass issued) ──
         _dp_pl2 = st.session_state.get("dynamic_pricing_payload") or {}
-        if _dp_pl2:
+        if _dp_pl2 and not st.session_state.get("gate_pass"):
             _dp_stations    = _dp_pl2.get("station_pricing", [])
             _dp_tou         = _dp_pl2.get("tou_multiplier", 1.0)
             _dp_band        = _dp_pl2.get("tou_band", "STANDARD")
@@ -3094,64 +3116,6 @@ if st.session_state.role == "driver":
                     )
 
 
-        # ── 🛡️ STATION REPUTATION AGENT EXPANDER ──
-        _rep_map = st.session_state.get("reputation_scores") or {}
-        if _rep_map:
-            with st.expander(
-                f"🛡️ Station Reputation & Trust Agent — Historical Quality & Rating Audit  ·  {len(_rep_map)} Hosts Evaluated",
-                expanded=True,
-            ):
-                _rep_rows_html = ""
-                for _sid, _rdata in _rep_map.items():
-                    _r_rating = _rdata.user_rating
-                    _r_uptime = _rdata.uptime_pct
-                    _r_mult   = _rdata.reputation_multiplier
-                    _r_badge  = _rdata.badge_label
-                    _r_desc   = _rdata.explanation
-                    _r_name   = _rdata.facility_name
-                    
-                    _b_color = "#10B981" if _r_mult > 1.0 else ("#EF4444" if _r_mult < 1.0 else "#F59E0B")
-                    _b_bg    = "rgba(16,185,129,0.12)" if _r_mult > 1.0 else ("rgba(239,68,68,0.12)" if _r_mult < 1.0 else "rgba(245,158,11,0.10)")
-
-                    _rep_rows_html += f"""
-                    <tr>
-                      <td style="padding:10px 14px;border-bottom:1px solid rgba(255,213,79,0.10);">
-                        <p style="font-family:var(--font-heading);font-size:0.85rem;font-weight:800;color:#F0FDF6;margin:0;">{_r_name}</p>
-                      </td>
-                      <td style="padding:10px 14px;border-bottom:1px solid rgba(255,213,79,0.10);text-align:center;">
-                        <span style="font-family:var(--font-heading);font-size:0.88rem;font-weight:800;color:#FFD54F;">⭐ {_r_rating:.1f}★</span>
-                      </td>
-                      <td style="padding:10px 14px;border-bottom:1px solid rgba(255,213,79,0.10);text-align:center;">
-                        <span style="font-family:var(--font-mono);font-size:0.84rem;font-weight:700;color:#00BFFF;">{_r_uptime:.1f}%</span>
-                      </td>
-                      <td style="padding:10px 14px;border-bottom:1px solid rgba(255,213,79,0.10);text-align:center;">
-                        <span style="font-family:var(--font-mono);font-size:0.88rem;font-weight:900;color:{_b_color};">×{_r_mult:.2f}</span>
-                      </td>
-                      <td style="padding:10px 14px;border-bottom:1px solid rgba(255,213,79,0.10);">
-                        <span style="background:{_b_bg};border:1px solid {_b_color};border-radius:14px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:{_b_color};">
-                          {_r_badge}
-                        </span>
-                      </td>
-                    </tr>"""
-
-                st.markdown(f"""
-                <div style="background:rgba(18,24,14,0.85);border:1.5px solid rgba(255,213,79,0.28);border-radius:14px;overflow:hidden;">
-                  <table style="width:100%;border-collapse:collapse;">
-                    <thead>
-                      <tr style="background:rgba(255,213,79,0.08);border-bottom:1.5px solid rgba(255,213,79,0.25);">
-                        <th style="padding:10px 14px;text-align:left;font-family:var(--font-body);font-size:0.63rem;font-weight:700;text-transform:uppercase;color:#FFD54F;">Station Host</th>
-                        <th style="padding:10px 14px;text-align:center;font-family:var(--font-body);font-size:0.63rem;font-weight:700;text-transform:uppercase;color:#FFD54F;">User Rating</th>
-                        <th style="padding:10px 14px;text-align:center;font-family:var(--font-body);font-size:0.63rem;font-weight:700;text-transform:uppercase;color:#FFD54F;">Charger Uptime</th>
-                        <th style="padding:10px 14px;text-align:center;font-family:var(--font-body);font-size:0.63rem;font-weight:700;text-transform:uppercase;color:#FFD54F;">Trust Multiplier</th>
-                        <th style="padding:10px 14px;text-align:left;font-family:var(--font-body);font-size:0.63rem;font-weight:700;text-transform:uppercase;color:#FFD54F;">Reputation Audit Badge</th>
-                      </tr>
-                    </thead>
-                    <tbody>{_rep_rows_html}</tbody>
-                  </table>
-                </div>
-                """, unsafe_allow_html=True)
-
-
         # ── 🔐 SECURITY PASS AGENT EXPANDER ──
         _gp = st.session_state.get("gate_pass")
         if _gp:
@@ -3222,16 +3186,9 @@ if st.session_state.role == "driver":
                     if qr_bytes:
                         st.image(qr_bytes, caption=f"Scan at Gate barrier: {_gp.assigned_bay}", width=170)
 
-        # ── (Charging action buttons removed from Driver View; controlled by Station Host) ──
-
-
         # ── 💳 FINTECH SETTLEMENT AGENT EXPANDER ──
         _inv = st.session_state.get("invoice_ledger")
-        if _inv:
-            with st.expander(
-                f"💳 FinTech Settlement Agent — Digital Escrow & Tax Invoice  ·  🟢 SETTLED_IN_ESCROW  ·  {_inv.transaction_id}",
-                expanded=True,
-            ):
+        if _inv and _gp:
                 st.markdown(f"""
                 <div style="background:linear-gradient(135deg,rgba(245,158,11,0.10) 0%,rgba(245,158,11,0.03) 100%);
                             border:1.5px solid rgba(245,158,11,0.40);border-radius:14px;
@@ -3309,10 +3266,180 @@ if st.session_state.role == "driver":
                     """, unsafe_allow_html=True)
 
 
-        # ── 🔍 9-AGENT JSON PAYLOAD VERIFICATION DRAWER ──
+        # ── 🗺️ ROUTE OPTIMIZER AGENT — DRIVER NAVIGATION PANEL (post-acceptance only) ──
+        if st.session_state.get("gate_pass"):
+            _route_data = st.session_state.get("route_payload") or {}
+
+            # Auto-compute route if not yet cached (e.g. after page reload)
+            if not _route_data and winner:
+                _raw_lat = st.session_state.get("gps_lat")
+                _raw_lon = st.session_state.get("gps_lon")
+                _truck_lat_d = float(_raw_lat) if _raw_lat is not None else 12.9716
+                _truck_lng_d = float(_raw_lon) if _raw_lon is not None else 77.5946
+                _win_sid  = winner.get("station_id", "")
+                _win_defs = STATIONS_DEFAULTS.get(_win_sid, {})
+                _st_lat_val = _win_defs.get("lat")
+                _st_lon_val = _win_defs.get("lon")
+                _st_lat_d = float(_st_lat_val) if _st_lat_val is not None else 12.9716
+                _st_lon_d = float(_st_lon_val) if _st_lon_val is not None else 77.5946
+                _route_agent_d = RouteOptimizerAgent(avg_speed_kmh=40.0, waypoint_count=10)
+                _route_pl_d = _route_agent_d.calculate_route(
+                    truck_lat=_truck_lat_d, truck_lng=_truck_lng_d,
+                    station_lat=_st_lat_d,
+                    station_lng=_st_lon_d,
+                    vehicle_id="EV-CV-001",
+                    station_id=_win_sid,
+                    station_name=winner.get("name", winner.get("facility_name", "Charging Station")),
+                )
+                _route_data = _route_pl_d.dict()
+                st.session_state["route_payload"] = _route_data
+
+            if _route_data:
+                import math as _math
+                _drv_bay = getattr(gate_pass_payload, "assigned_bay", None) or "BAY-01"
+                _dist_km = _route_data.get("distance_km", 0)
+                _eta_min = _route_data.get("eta_minutes", 0)
+
+                # ── Header + Assigned Bay badge inline ──
+                st.markdown(f"""
+                <div style="display:flex;align-items:center;justify-content:space-between;
+                            margin:22px 0 14px;flex-wrap:wrap;gap:10px;">
+                  <p style="font-family:var(--font-heading);font-size:0.92rem;font-weight:900;
+                            color:#00BFFF;margin:0;letter-spacing:1px;">
+                    🗺️ ROUTE OPTIMIZER AGENT — LIVE NAVIGATION DISPATCH
+                  </p>
+                  <span style="background:rgba(16,185,129,0.14);border:1.5px solid rgba(16,185,129,0.45);
+                               border-radius:20px;padding:6px 18px;font-family:var(--font-heading);
+                               font-size:0.82rem;font-weight:800;color:#10B981;letter-spacing:0.5px;">
+                    🅿️ Assigned Bay: {_drv_bay}
+                  </span>
+                </div>""", unsafe_allow_html=True)
+
+                # ── 2 Metric Cards only (Bay moved to header badge above) ──
+                _rm1, _rm2 = st.columns(2, gap="medium")
+                with _rm1:
+                    st.markdown(f"""
+                    <div style="background:rgba(0,191,255,0.08);border:1.5px solid rgba(0,191,255,0.30);
+                                border-radius:14px;padding:18px;text-align:center;">
+                      <p style="font-family:var(--font-tech);font-size:0.68rem;color:var(--text-muted);
+                                margin:0;text-transform:uppercase;">📍 Distance to Station</p>
+                      <p style="font-family:var(--font-heading);font-size:2.0rem;font-weight:900;
+                                color:#00BFFF;margin:6px 0 0;">
+                        {_dist_km:.1f}<span style="font-size:0.90rem;color:var(--text-dim);"> km</span>
+                      </p>
+                    </div>""", unsafe_allow_html=True)
+                with _rm2:
+                    st.markdown(f"""
+                    <div style="background:rgba(245,158,11,0.08);border:1.5px solid rgba(245,158,11,0.30);
+                                border-radius:14px;padding:18px;text-align:center;">
+                      <p style="font-family:var(--font-tech);font-size:0.68rem;color:var(--text-muted);
+                                margin:0;text-transform:uppercase;">⏱️ Estimated ETA</p>
+                      <p style="font-family:var(--font-heading);font-size:2.0rem;font-weight:900;
+                                color:#F59E0B;margin:6px 0 0;">
+                        {_eta_min:.0f}<span style="font-size:0.90rem;color:var(--text-dim);"> min</span>
+                      </p>
+                    </div>""", unsafe_allow_html=True)
+
+                st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+                # ── PyDeck Route Map — Google-Maps-style CartoDB Voyager tiles ──
+                try:
+                    import pydeck as pdk
+                    _path_data   = _route_data.get("path", [])
+                    _truck_lat_m = _route_data.get("truck_lat", 12.9716)
+                    _truck_lng_m = _route_data.get("truck_lng", 77.5946)
+                    _st_lat_m    = _route_data.get("station_lat", 12.9716)
+                    _st_lng_m    = _route_data.get("station_lng", 77.5946)
+                    _mid_lat     = (_truck_lat_m + _st_lat_m) / 2
+                    _mid_lng     = (_truck_lng_m + _st_lng_m) / 2
+
+                    # Dynamic zoom: fit both markers in viewport based on distance
+                    _zoom = max(4, min(13, round(13 - _math.log2(max(_dist_km, 1) / 2 + 1))))
+                    # Scale dot radius so markers stay visible at wider zoom levels
+                    _dot_r = max(500, int(_dist_km * 120))
+
+                    _path_layer = pdk.Layer(
+                        "PathLayer",
+                        data=[{"path": _path_data, "color": [30, 120, 255]}],
+                        get_path="path",
+                        get_color="color",
+                        get_width=8,
+                        width_min_pixels=4,
+                        pickable=True,
+                        rounded=True,
+                    )
+                    _truck_layer = pdk.Layer(
+                        "ScatterplotLayer",
+                        data=[{"position": [_truck_lng_m, _truck_lat_m],
+                               "fill_color": [255, 140, 0], "radius": _dot_r,
+                               "label": "🚛 EV Truck — EV-CV-001"}],
+                        get_position="position",
+                        get_fill_color="fill_color",
+                        get_radius="radius",
+                        pickable=True,
+                        stroked=True,
+                        get_line_color=[255, 255, 255],
+                        line_width_min_pixels=3,
+                    )
+                    _station_layer = pdk.Layer(
+                        "ScatterplotLayer",
+                        data=[{"position": [_st_lng_m, _st_lat_m],
+                               "fill_color": [22, 197, 94], "radius": int(_dot_r * 1.25),
+                               "label": f"⚡ {_route_data.get('station_name', 'Charging Station')}"}],
+                        get_position="position",
+                        get_fill_color="fill_color",
+                        get_radius="radius",
+                        pickable=True,
+                        stroked=True,
+                        get_line_color=[255, 255, 255],
+                        line_width_min_pixels=3,
+                    )
+                    _view = pdk.ViewState(
+                        latitude=_mid_lat,
+                        longitude=_mid_lng,
+                        zoom=_zoom,
+                        pitch=0,
+                        bearing=0,
+                    )
+                    st.pydeck_chart(pdk.Deck(
+                        # CartoDB Voyager: Google-Maps-like road tiles, no Mapbox token required
+                        map_style="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+                        initial_view_state=_view,
+                        layers=[_path_layer, _truck_layer, _station_layer],
+                        tooltip={"text": "{label}"},
+                        height=500,
+                    ))
+                except ImportError:
+                    st.warning("ℹ️ Install `pydeck` (`pip install pydeck`) to enable the interactive route map.")
+                except Exception as _map_err:
+                    st.caption(f"Route map unavailable: {_map_err}")
+
+                # ── Turn-by-Turn Navigation Expander ──
+                _nav_steps = _route_data.get("navigation_steps", [])
+                if _nav_steps:
+                    with st.expander("📲 Driver Navigation Instructions", expanded=False):
+                        st.markdown(
+                            f'<p style="font-family:var(--font-heading);font-size:0.80rem;font-weight:800;'
+                            f'color:#00BFFF;margin:0 0 12px;">Step-by-Step Route Directions — EV-CV-001 → {_drv_bay}</p>',
+                            unsafe_allow_html=True,
+                        )
+                        for _step_i, _step_txt in enumerate(_nav_steps, start=1):
+                            st.markdown(f"""
+                            <div style="background:rgba(14,26,18,0.82);border-left:3px solid #00BFFF;
+                                        border-radius:8px;padding:10px 16px;margin-bottom:8px;
+                                        font-family:var(--font-body);font-size:0.82rem;color:#F0FDF6;">
+                              <b style="color:#00BFFF;">Step {_step_i}.</b>&nbsp; {_step_txt}
+                            </div>""", unsafe_allow_html=True)
+
+                st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+        # ── 🔍 11-AGENT JSON PAYLOAD VERIFICATION DRAWER ──
         _pipeline_res = st.session_state.get("pipeline_results") or {}
         if _pipeline_res:
-            with st.expander("🔍 End-to-End 9-Agent Pipeline JSON Payloads (Audit Log)", expanded=False):
+            with st.expander("🔍 End-to-End 11-Agent Pipeline JSON Payloads (Audit Log)", expanded=False):
                 st.markdown('<p style="font-family:var(--font-heading);font-size:0.85rem;color:var(--accent-neon);margin:0 0 10px;">📋 Complete Inter-Agent Payload Audit Trace</p>', unsafe_allow_html=True)
                 st.json(_pipeline_res)
 
@@ -3686,6 +3813,22 @@ elif st.session_state.role in ["station_a", "station_b", "station_c", "station_d
                             }
                         })
                         st.success("Request accepted! Driver dashboard updated with #808-GATE-PASS & Invoice.")
+
+                        # ── 🗺️ Route Optimizer Agent: compute navigation path ──────
+                        _truck_lat = float(st.session_state.get("gps_lat", 12.9716))
+                        _truck_lng = float(st.session_state.get("gps_lon", 77.5946))
+                        _st_coords = STATIONS_DEFAULTS.get(target_sid, {})
+                        _st_lat    = float(_st_coords.get("lat", 12.9716))
+                        _st_lng    = float(_st_coords.get("lon", 77.5946))
+                        _route_agent = RouteOptimizerAgent(avg_speed_kmh=40.0, waypoint_count=10)
+                        _route_pl = _route_agent.calculate_route(
+                            truck_lat=_truck_lat, truck_lng=_truck_lng,
+                            station_lat=_st_lat,  station_lng=_st_lng,
+                            vehicle_id="EV-CV-001",
+                            station_id=target_sid,
+                            station_name=s_name,
+                        )
+                        st.session_state["route_payload"] = _route_pl.dict()
                         st.rerun()
 
                 with col_rej:
@@ -3701,7 +3844,12 @@ elif st.session_state.role in ["station_a", "station_b", "station_c", "station_d
 
             elif req_status in ["ACCEPTED", "APPROVED_GATE_PASS"]:
                 st.info("🟡 GATE PASS ISSUED — AWAITING VEHICLE ARRIVAL & PLUG-IN")
+
                 col_act1, col_act2 = st.columns(2)
+
+
+                col_act1, col_act2 = st.columns(2)
+
                 with col_act1:
                     if st.button("⚡ Start Charging Session", key=f"btn_start_{target_sid}"):
                         save_stations_db({

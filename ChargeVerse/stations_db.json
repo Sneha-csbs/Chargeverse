@@ -16,8 +16,8 @@
       },
       "pending_request": {
         "vehicle_id": "EV-CV-001",
-        "required_kwh": 63.54,
-        "urgency": "LOW",
+        "required_kwh": 86.54,
+        "urgency": "MODERATE",
         "cargo_type": "Pharmaceuticals / Vaccines",
         "proposed_tariff": 8.0
       }
@@ -58,7 +58,7 @@
       "kw": 50.0
     },
     "station_f": {
-      "status": "ONLINE",
+      "status": "AUCTION_ALERT_PENDING",
       "price_per_kwh": 0.05,
       "queue_length": 0,
       "kw": 50.0,
@@ -73,8 +73,8 @@
       },
       "pending_request": {
         "vehicle_id": "EV-CV-001",
-        "required_kwh": 63.54,
-        "urgency": "LOW",
+        "required_kwh": 86.54,
+        "urgency": "MODERATE",
         "cargo_type": "Pharmaceuticals / Vaccines",
         "proposed_tariff": 8.0
       },
@@ -88,8 +88,8 @@
       "kw": 300.0,
       "pending_request": {
         "vehicle_id": "EV-CV-001",
-        "required_kwh": 63.54,
-        "urgency": "LOW",
+        "required_kwh": 86.54,
+        "urgency": "MODERATE",
         "cargo_type": "Pharmaceuticals / Vaccines",
         "proposed_tariff": 8.0
       },
@@ -109,13 +109,13 @@
         "station_a",
         "station_g"
       ],
-      "battery_soc": 100.0,
-      "energy_deficit": 79.42,
-      "sla_urgency": 0.3,
+      "battery_soc": 45.0,
+      "energy_deficit": 108.18,
+      "sla_urgency": 0.52,
       "cargo_type": "Pharmaceuticals / Vaccines",
-      "gps_lat": 10.82775,
-      "gps_lon": 77.06042,
-      "timestamp": 1785388516.38
+      "gps_lat": 10.82769,
+      "gps_lon": 77.06035,
+      "timestamp": 1785402440.21
     }
   }
 }
